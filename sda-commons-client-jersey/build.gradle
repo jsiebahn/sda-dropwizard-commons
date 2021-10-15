@@ -19,4 +19,5 @@ dependencies {
   testImplementation 'org.awaitility:awaitility'
   testImplementation 'org.assertj:assertj-core'
   testImplementation 'io.opentracing:opentracing-mock'
+  testImplementation group: 'org.glassfish.jersey.security', name: 'oauth2-client', version: '3.0.2'
 }

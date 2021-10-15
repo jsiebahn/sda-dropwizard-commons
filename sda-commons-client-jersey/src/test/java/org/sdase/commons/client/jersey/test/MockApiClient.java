@@ -130,4 +130,37 @@ public interface MockApiClient {
       return this;
     }
   }
+
+  class ExtendedCar {
+    private String sign;
+    private String color;
+    private String extention;
+
+    public String getSign() {
+      return sign;
+    }
+
+    public ExtendedCar setSign(String sign) {
+      this.sign = sign;
+      return this;
+    }
+
+    public String getColor() {
+      return color;
+    }
+
+    public ExtendedCar setColor(String color) {
+      this.color = color;
+      return this;
+    }
+
+    public String getExtention() {
+      return extention;
+    }
+
+    public ExtendedCar setExtention(String extention) {
+      this.extention = extention;
+      return this;
+    }
+  }
 }

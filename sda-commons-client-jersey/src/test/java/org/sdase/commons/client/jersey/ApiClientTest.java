@@ -30,6 +30,7 @@ import static org.sdase.commons.client.jersey.test.util.ClientRequestExceptionCo
 import com.codahale.metrics.MetricFilter;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.github.tomakehurst.wiremock.common.ConsoleNotifier;
 import com.github.tomakehurst.wiremock.http.RequestMethod;
 import com.github.tomakehurst.wiremock.jetty9.JettyHttpServerFactory;
 import com.github.tomakehurst.wiremock.junit.WireMockClassRule;
@@ -50,6 +51,7 @@ import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import org.assertj.core.util.Lists;
 import org.glassfish.jersey.client.authentication.HttpAuthenticationFeature;
+import org.glassfish.jersey.client.oauth2.OAuth2ClientSupport;
 import org.glassfish.jersey.media.multipart.FormDataMultiPart;
 import org.glassfish.jersey.media.multipart.MultiPartFeature;
 import org.junit.Before;
@@ -62,16 +64,19 @@ import org.sdase.commons.client.jersey.test.ClientTestApp;
 import org.sdase.commons.client.jersey.test.ClientTestConfig;
 import org.sdase.commons.client.jersey.test.MockApiClient;
 import org.sdase.commons.client.jersey.test.MockApiClient.Car;
+import org.sdase.commons.client.jersey.test.MockApiClient.ExtendedCar;
 import org.sdase.commons.shared.api.error.ApiException;
 
 public class ApiClientTest {
 
   public static final WireMockClassRule WIRE =
       new WireMockClassRule(
-          wireMockConfig().dynamicPort().httpServerFactory(new JettyHttpServerFactory()));
+          wireMockConfig().notifier(new ConsoleNotifier(true)).dynamicPort().httpServerFactory(new JettyHttpServerFactory()));
 
   public static final Car LIGHT_BLUE_CAR =
       new Car().setSign("HH XY 4321").setColor("light blue"); // NOSONAR
+  public static final ExtendedCar EXTENDED_CAR =
+      new ExtendedCar().setExtention("ignore_me").setSign("HH EC 4321").setColor("dark blue"); // NOSONAR
   private static final ObjectMapper OM = new ObjectMapper();
   private static final Car BRIGHT_BLUE_CAR =
       new Car().setSign("HH XX 1234").setColor("bright blue"); // NOSONAR
@@ -132,6 +137,14 @@ public class ApiClientTest {
                     .withStatus(200)
                     .withHeader("Content-type", "application/json")
                     .withBody(OM.writeValueAsBytes(LIGHT_BLUE_CAR))));
+    WIRE.stubFor(
+        get(urlMatching("/api/cars/HH%20EC%204321(\\?.*)?"))
+            .withHeader("Accept", equalTo("application/json"))
+            .willReturn(
+                aResponse()
+                    .withStatus(200)
+                    .withHeader("Content-type", "application/json")
+                    .withBody(OM.writeValueAsString(EXTENDED_CAR))));
   }
 
   @Test
@@ -369,6 +382,15 @@ public class ApiClientTest {
         .extracting(Car::getSign, Car::getColor)
         .containsExactly("HH XY 4321", "light blue");
   }
+
+  @Test
+  public void loadCarTolerant() {
+    Car car = createExternalApiClient().getCar("HH EC 4321");
+    assertThat(car)
+        .extracting(Car::getSign, Car::getColor)
+        .containsExactly("HH EC 4321", "dark blue");
+  }
+
 
   @Test
   public void loadSingleCarWithFieldFilterAllFields() {
@@ -656,6 +678,16 @@ public class ApiClientTest {
         .api(MockApiClient.class)
         .atTarget(WIRE.baseUrl());
   }
+  private MockApiClient createExternalApiClient() {
+    return app.getJerseyClientBundle()
+        .getClientFactory()
+        .externalClient()
+        .addFeature(OAuth2ClientSupport.feature("test"))
+        .api(MockApiClient.class)
+        .atTarget(WIRE.baseUrl());
+  }
+
+
 
   private MockApiClient createMockApiClientWithBasicAuth() {
     return app.getJerseyClientBundle()
